@@ -9,7 +9,10 @@
     "build": "pnpm -r --if-present build",
     "db:generate": "pnpm --filter @gatehouse/db generate",
     "db:migrate": "pnpm --filter @gatehouse/db migrate",
-    "db:seed": "pnpm --filter @gatehouse/db seed"
+    "db:seed": "pnpm --filter @gatehouse/db seed",
+    "demo:setup": "pnpm db:migrate && pnpm db:seed",
+    "demo": "pnpm --filter @gatehouse/web dev",
+    "demo:reset": "pnpm --filter @gatehouse/db reset && pnpm demo:setup"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

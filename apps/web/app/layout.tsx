@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Gatehouse Control Room", description: "UK static guarding & mobile patrol operations" };
-const nav = [["/dashboard", "Dashboard"], ["/roster", "Roster"], ["/compliance/audit-logs", "Audit trail"], ["/import/guardhouse", "Guardhouse import"], ["/client-portal", "Client portal"]] as const;
+const nav = [["/dashboard", "Dashboard"], ["/roster", "Roster"], ["/compliance/audit-logs", "Audit trail"], ["/guard", "Guard simulator"], ["/import/guardhouse", "Guardhouse import"], ["/client-portal", "Client portal"]] as const;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

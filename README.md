@@ -22,6 +22,18 @@ pnpm --filter @gatehouse/web dev     # web on :3000
 ```
 Create the test DB first: `createdb gatehouse_test`. Migrations are idempotent and enable PostGIS.
 
+## Local browser PoC
+One process, no separate API needed: the web app reads Postgres directly and runs the real compliance/sync code via server actions.
+```bash
+pnpm install
+service postgresql start      # or: docker compose up -d   (needs PostGIS)
+pnpm demo:setup               # migrate + synthetic seed
+pnpm demo                     # http://localhost:3000
+pnpm demo:reset               # wipe and re-seed (local DB only)
+```
+Try: **Roster** (assign an expired-SIA guard as Admin, then as Compliance Admin with a reason) -> **Guard simulator** (clock in away from site, then on site; scan a legacy tag; SOS) -> **Dashboard**, **Audit trail**, **Client portal** (view as each client).
+There is no login yet (PoC); do not expose it beyond localhost.
+
 ## Decisions worth knowing
 - **Override role**: `COMPLIANCE_ADMIN` only (CLAUDE.md), not plain `ADMIN` as the phase prompt said.
 - **SIA check** compares licence expiry (valid to end of that day) against shift **end**, stricter than shift start.
