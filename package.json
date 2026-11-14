@@ -1,0 +1,17 @@
+{
+  "name": "gatehouse",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "db:generate": "pnpm --filter @gatehouse/db generate",
+    "db:migrate": "pnpm --filter @gatehouse/db migrate",
+    "db:seed": "pnpm --filter @gatehouse/db seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
