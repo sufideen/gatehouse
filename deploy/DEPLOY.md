@@ -1,5 +1,39 @@
 # Private pilot deployment
 
+## Azure single VM (recommended; Bicep in `deploy/azure/`)
+
+**Status: written, not yet compiled or deployed.** The Bicep template, cloud-init and scripts were authored without access to the Bicep compiler or an Azure subscription (shell syntax and YAML were checked). Run `--what-if` first and expect a few small fixes. The Docker build is also still untested.
+
+What it creates in UK South: one Ubuntu 24.04 VM (Trusted Launch, SSH key only), static public IP with a free DNS name (`<label>.uksouth.cloudapp.azure.com`), an NSG (SSH only from your IP; 80/443 open for HTTPS certificates), a Key Vault holding the app secrets (the VM reads them via its managed identity, nothing is pasted onto the server), and a storage account for **encrypted nightly DB backups that auto-delete after 14 days** (soft-delete off, so deletions are real). Cron on the VM runs the backup (02:30) and the 30-day pilot-data retention job (03:15).
+
+```bash
+# 1. from your machine, logged in with the right subscription:  az login && az account set -s <subscription>
+cd deploy/azure
+DNS_LABEL=gatehouse-yourco SSH_ALLOWED_CIDR=$(curl -s ifconfig.me)/32 \
+SMTP_URL='smtps://USER:PASS@smtp.example:465' MAIL_FROM='Gatehouse <no-reply@yourco.co.uk>' \
+./deploy.sh --what-if          # review, then run again without --what-if
+# 2. put the code on the VM (repo is private: use a deploy key or scp)
+ssh azureuser@gatehouse-yourco.uksouth.cloudapp.azure.com
+git clone <repo> /opt/gatehouse/app && cd /opt/gatehouse/app && git checkout claude/beautiful-lamport-scbrcd
+/opt/gatehouse/bin/deploy.sh   # pulls secrets from Key Vault, builds, starts db + web + Caddy
+# 3. create the first admin (no public sign-up; never run the demo seed in production)
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm \
+  -e ORG_NAME="Your Co Ltd" -e ADMIN_EMAIL=you@yourco.co.uk -e ADMIN_FIRST=Ada -e ADMIN_LAST=Lovelace \
+  -e ADMIN_PASSWORD='a-long-unique-passphrase' migrate pnpm --filter @gatehouse/db create-admin
+```
+Notes:
+- **Private access:** the app is protected by login + MFA. To also limit who can even reach it, uncomment the IP allow-list in `deploy/Caddyfile` (the NSG must keep 80/443 open or certificate issuance fails).
+- **SMTP_URL / passwords:** URL-encode special characters and avoid `$` (compose treats it as interpolation).
+- **Pilot data:** leave `allowPilotData` false until the privacy notice, pilot agreement and DPIA are done; then redeploy with `ALLOW_PILOT_DATA=true`.
+- **Backups:** keep a copy of the backup passphrase (`az keyvault secret show --vault-name <kv> -n backup-passphrase`) somewhere safe. Without it backups cannot be read. They contain personal data, hence the short expiry.
+- **Hardening to consider:** Key Vault firewall limited to the VM, Azure Backup for the VM disk, Defender for Cloud, encryption at host (needs a one-off feature registration), a separate data disk for Postgres, patch window for the VM.
+- **Teardown:** `az group delete -n rg-gatehouse-pilot` removes everything (Key Vault is soft-deleted for 7 days).
+- **Terraform instead?** The same layout maps 1:1 to `azurerm` resources if your team prefers it.
+
+---
+
+## Other options (generic Docker host, AWS)
+
 **Status: the Docker build and compose stack are written but NOT yet tested** (the build environment had no Docker daemon). The app itself, migrations, bootstrap command and production build were all tested. Expect to fix small things on the first `docker compose up`.
 
 ## Before you start (not code)

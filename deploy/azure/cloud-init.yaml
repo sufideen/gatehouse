@@ -1,0 +1,38 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages: [docker.io, docker-compose-v2, git, jq, curl, openssl, unattended-upgrades]
+write_files:
+  - path: /etc/gatehouse.conf
+    permissions: '0644'
+    content: |
+      KV_NAME=__KV_NAME__
+      STORAGE_ACCOUNT=__STORAGE__
+      DOMAIN=__DOMAIN__
+      ALLOW_PILOT_DATA=__ALLOW_PILOT__
+  - path: /opt/gatehouse/bin/fetch-env.sh
+    permissions: '0750'
+    encoding: b64
+    content: __FETCH_B64__
+  - path: /opt/gatehouse/bin/backup.sh
+    permissions: '0750'
+    encoding: b64
+    content: __BACKUP_B64__
+  - path: /opt/gatehouse/bin/retention.sh
+    permissions: '0750'
+    encoding: b64
+    content: __RETENTION_B64__
+  - path: /opt/gatehouse/bin/deploy.sh
+    permissions: '0750'
+    encoding: b64
+    content: __DEPLOY_B64__
+  - path: /etc/cron.d/gatehouse
+    permissions: '0644'
+    content: |
+      30 2 * * * root /opt/gatehouse/bin/backup.sh >> /var/log/gatehouse-backup.log 2>&1
+      15 3 * * * root /opt/gatehouse/bin/retention.sh >> /var/log/gatehouse-retention.log 2>&1
+runcmd:
+  - systemctl enable --now docker
+  - usermod -aG docker azureuser
+  - mkdir -p /opt/gatehouse/app
+  - chown azureuser:azureuser /opt/gatehouse/app
