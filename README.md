@@ -61,6 +61,9 @@ The Expo app now has real accounts (`apps/mobile`): **Login** (with MFA code if 
 It talks to a bearer-token API in the web app (`/api/mobile/*`: `login`, `join`, `notice`, `invite/:token`, `me`, `consent/withdraw`, `export`, `erase`, `sync`). Offline sync now goes through the authenticated `/api/mobile/sync`; the guard identity comes from the token, never the request body. Mobile tokens last 14 days and are revoked by password/MFA resets or erasure. Only guard roles can sign in on mobile. Set `EXPO_PUBLIC_API_URL`.
 The shift screen still uses a demo shift (assignment fetching is not built), so its sync will be rejected until real shift data is wired in.
 
+## Deploying (private pilot)
+See [`deploy/DEPLOY.md`](./deploy/DEPLOY.md): single-VM Docker Compose stack (Postgres+PostGIS, web, Caddy HTTPS with optional IP allow-list) and an AWS outline. Create the first admin with `pnpm --filter @gatehouse/db create-admin` (never run the demo seed in production). The Docker build/compose stack is written but not yet tested end to end.
+
 ## Decisions worth knowing
 - **Override role**: `COMPLIANCE_ADMIN` only (CLAUDE.md), not plain `ADMIN` as the phase prompt said.
 - **SIA check** compares licence expiry (valid to end of that day) against shift **end**, stricter than shift start.

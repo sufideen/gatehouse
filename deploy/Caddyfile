@@ -1,0 +1,9 @@
+# Automatic HTTPS (Let's Encrypt). Set DOMAIN in .env.production, e.g. gatehouse.yourcompany.co.uk
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy web:3000
+
+	# PRIVATE PILOT: uncomment to allow only your office/VPN IPs (everyone else gets 403 before reaching the login page)
+	# @blocked not remote_ip 203.0.113.10 198.51.100.0/24
+	# respond @blocked 403
+}

@@ -1,0 +1,54 @@
+# Single-VM deployment: Postgres+PostGIS, the web app, and Caddy for HTTPS.
+#   cp .env.example .env.production   (fill it in: see deploy/DEPLOY.md)
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gatehouse
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: gatehouse
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gatehouse"]
+      interval: 5s
+      retries: 10
+    # no published ports: only reachable from other containers
+
+  migrate:
+    build: .
+    command: ["pnpm", "--filter", "@gatehouse/db", "migrate"]
+    environment:
+      DATABASE_URL: postgres://gatehouse:${DB_PASSWORD}@db:5432/gatehouse
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://gatehouse:${DB_PASSWORD}@db:5432/gatehouse
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET (32+ random chars)}
+      APP_BASE_URL: https://${DOMAIN:?set DOMAIN}
+      SMTP_URL: ${SMTP_URL:?set SMTP_URL}
+      MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM}
+      ALLOW_PILOT_DATA: ${ALLOW_PILOT_DATA:-false}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  caddy_data:
