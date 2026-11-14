@@ -1,4 +1,4 @@
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3100"; // Android emulator: use http://10.0.2.2:3100
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message?: string) { super(message ?? code); }

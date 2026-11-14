@@ -39,7 +39,7 @@ export function baseUrl(): string {
   const u = process.env.APP_BASE_URL;
   if (u) return u.replace(/\/$/, "");
   if (process.env.NODE_ENV === "production") throw new Error("APP_BASE_URL is required in production");
-  return "http://localhost:3000";
+  return `http://localhost:${process.env.PORT ?? 3100}`;
 }
 
 /** Roles that handle other people's data must use MFA. Guards and client viewers may opt in. */

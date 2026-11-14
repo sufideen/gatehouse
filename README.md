@@ -18,7 +18,7 @@ pnpm db:migrate && pnpm db:seed
 pnpm typecheck
 TEST_DATABASE_URL=postgres://gatehouse:gatehouse@localhost:5432/gatehouse_test pnpm test   # DB tests skip without it
 pnpm --filter @gatehouse/api dev     # API on :4000
-pnpm --filter @gatehouse/web dev     # web on :3000
+pnpm --filter @gatehouse/web dev     # web on :3100 (PORT=4000 pnpm demo to change)
 ```
 Create the test DB first: `createdb gatehouse_test`. Migrations are idempotent and enable PostGIS.
 
@@ -28,7 +28,7 @@ One process, no separate API needed: the web app reads Postgres directly and run
 pnpm install
 service postgresql start      # or: docker compose up -d   (needs PostGIS)
 pnpm demo:setup               # migrate + synthetic seed
-pnpm demo                     # http://localhost:3000
+pnpm demo                     # http://localhost:3100  (PORT=4000 pnpm demo to use another port)
 pnpm demo:reset               # wipe and re-seed (local DB only)
 ```
 Try: **Roster** (assign an expired-SIA guard as Admin, then as Compliance Admin with a reason) -> **Guard simulator** (clock in away from site, then on site; scan a legacy tag; SOS) -> **Dashboard**, **Audit trail**, **Client portal** (view as each client).
