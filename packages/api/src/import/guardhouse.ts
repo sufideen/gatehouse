@@ -1,4 +1,5 @@
 import { parse } from "csv-parse/sync";
+import { insertConsent, isReservedEmail, retentionExpiry, type Scope } from "../privacy";
 import { checkpoints, circlePolygonWkt, pointWkt, sites, users, writeAudit, type Db } from "@gatehouse/db";
 
 export type Issue = { level: "ERROR" | "WARNING"; message: string };
@@ -73,20 +74,42 @@ export function previewSitesCsv(csv: string): SiteRow[] {
   return [...bySite.values()];
 }
 
-export type CommitResult = { guardsCreated: number; guardsSkipped: number; sitesCreated: number; checkpointsCreated: number };
+export type ConsentGrant = { scopes: Scope[]; policyVersion: string };
+export type CommitResult = { guardsCreated: number; guardsSkipped: number; guardsSkippedNoConsent: number; guardsSkippedNotSynthetic: number; sitesCreated: number; checkpointsCreated: number };
 
 /** Single transaction; rows with ERROR issues are never imported. Bulk event goes to the audit log. */
-export async function commitGuardhouseImport(db: Db, o: { organisationId: string; actorId: string | null; ipAddress?: string | null; guards?: GuardRow[]; sites?: SiteRow[] }): Promise<CommitResult> {
+export type ImportMode =
+  | { dataOrigin: "SYNTHETIC" }
+  /** Real people: only guards with an explicit consent grant are imported, and only the scoped fields. */
+  | { dataOrigin: "PILOT_CONSENTED"; consents: Record<string, ConsentGrant> };
+
+export async function commitGuardhouseImport(db: Db, o: { organisationId: string; actorId: string | null; ipAddress?: string | null; guards?: GuardRow[]; sites?: SiteRow[]; mode: ImportMode }): Promise<CommitResult> {
+  if (o.mode.dataOrigin === "PILOT_CONSENTED" && process.env.ALLOW_PILOT_DATA !== "true") {
+    throw new Error("Real pilot data may only be written to the dedicated pilot database (set ALLOW_PILOT_DATA=true there)");
+  }
   return db.transaction(async (tx) => {
-    const res: CommitResult = { guardsCreated: 0, guardsSkipped: 0, sitesCreated: 0, checkpointsCreated: 0 };
+    const res: CommitResult = { guardsCreated: 0, guardsSkipped: 0, guardsSkippedNoConsent: 0, guardsSkippedNotSynthetic: 0, sitesCreated: 0, checkpointsCreated: 0 };
     for (const g of o.guards ?? []) {
       if (g.issues.some((i) => i.level === "ERROR")) { res.guardsSkipped++; continue; }
+      let scopes: Scope[] = ["IDENTITY", "CONTACT", "SIA_DETAILS"], grant: ConsentGrant | undefined;
+      if (o.mode.dataOrigin === "SYNTHETIC") {
+        if (!isReservedEmail(g.email)) { res.guardsSkippedNotSynthetic++; continue; } // looks like a real person
+      } else {
+        grant = o.mode.consents[g.email];
+        if (!grant?.scopes.includes("IDENTITY")) { res.guardsSkippedNoConsent++; continue; }
+        scopes = grant.scopes;
+      }
       const inserted = await tx.insert(users).values({
         organisationId: o.organisationId, role: "STATIC_GUARD", firstName: g.firstName, lastName: g.lastName, email: g.email,
-        mobile: g.mobile, employmentType: g.employmentType, siaBadgeNumber: g.siaBadgeNumber, siaLicenceExpiry: g.siaLicenceExpiry,
+        mobile: scopes.includes("CONTACT") ? g.mobile : null, employmentType: g.employmentType,
+        siaBadgeNumber: scopes.includes("SIA_DETAILS") ? g.siaBadgeNumber : null,
+        siaLicenceExpiry: scopes.includes("SIA_DETAILS") ? g.siaLicenceExpiry : null,
         bs7858VettingStatus: "PENDING", // vetting is never inferred from an import
+        dataOrigin: o.mode.dataOrigin, retentionExpiresAt: grant ? retentionExpiry() : null,
       }).onConflictDoNothing().returning({ id: users.id });
-      inserted.length ? res.guardsCreated++ : res.guardsSkipped++;
+      if (!inserted.length) { res.guardsSkipped++; continue; }
+      res.guardsCreated++;
+      if (grant) await insertConsent(tx as never, { userId: inserted[0]!.id, scopes: grant.scopes, policyVersion: grant.policyVersion, recordedBy: o.actorId });
     }
     for (const s of o.sites ?? []) {
       if (s.issues.some((i) => i.level === "ERROR") || s.lat === null || s.lng === null) continue;

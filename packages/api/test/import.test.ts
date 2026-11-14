@@ -44,9 +44,9 @@ describe.skipIf(!TEST_URL)("commitGuardhouseImport (db)", () => {
   it("imports valid rows transactionally, preserves tag UIDs and audits the bulk event", async () => {
     const [org] = await ctx.db.insert(organisations).values({ name: "Import Co" }).returning();
     const res = await commitGuardhouseImport(ctx.db, {
-      organisationId: org!.id, actorId: null, guards: previewGuardsCsv(guardsCsv), sites: previewSitesCsv(sitesCsv),
+      organisationId: org!.id, actorId: null, guards: previewGuardsCsv(guardsCsv), sites: previewSitesCsv(sitesCsv), mode: { dataOrigin: "SYNTHETIC" },
     });
-    expect(res).toEqual({ guardsCreated: 2, guardsSkipped: 1, sitesCreated: 1, checkpointsCreated: 2 });
+    expect(res).toMatchObject({ guardsCreated: 2, guardsSkipped: 1, sitesCreated: 1, checkpointsCreated: 2 });
     const [site] = await ctx.db.select().from(sites).where(eq(sites.organisationId, org!.id));
     const cps = await ctx.db.select().from(checkpoints).where(eq(checkpoints.siteId, site!.id));
     expect(cps.map((c) => c.externalTagUid).sort()).toEqual(["04:A2:2B:7C:80:11", "GH-0001"]);

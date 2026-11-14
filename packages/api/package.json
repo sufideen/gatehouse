@@ -9,7 +9,8 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "retention": "tsx src/retention.ts"
   },
   "dependencies": {
     "@gatehouse/db": "workspace:*",

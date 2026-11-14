@@ -1,3 +1,4 @@
+import { uuidv7 } from "uuidv7";
 import { createDb } from "./client";
 import { circlePolygonWkt, pointWkt } from "./geo";
 import { writeAudit } from "./audit";
@@ -85,7 +86,37 @@ await db.transaction(async (tx) => {
   });
   await tx.insert(s.shifts).values(shiftRows);
 
-  await writeAudit(tx, { actorId: compliance!.id, action: "SEED", entityType: "organisation", entityId: co!.id, newValues: { guards: guards.length, sites: sites.length } });
+  // ---- 14 days of synthetic history so dashboards/audit views have content ----
+  const allCps = await tx.select().from(s.checkpoints);
+  for (let d = 1; d <= 14; d++) {
+    for (const [si, site] of sites.entries()) {
+      const guard = compliantStatic[(d + si) % compliantStatic.length]!;
+      const start = new Date(base.getTime() - d * day);
+      const [sh] = await tx.insert(s.shifts).values({
+        siteId: site.id, guardId: guard.id, shiftType: "STATIC", status: "COMPLETED", startUtc: start,
+        endUtc: new Date(start.getTime() + 12 * 3_600_000), payRateGbp: "12.60", chargeRateGbp: "19.50",
+      }).returning();
+      await tx.insert(s.attendanceLogs).values({
+        shiftId: sh!.id, syncUuid: uuidv7(), clockInUtc: new Date(start.getTime() + 2 * 60_000), clockInGps: pointWkt(SITES[si]!.lat, SITES[si]!.lng),
+        clockInSelfieS3Key: `selfies/synthetic-${si}-${d}.jpg`, clockOutUtc: new Date(start.getTime() + 12 * 3_600_000), clockOutGps: pointWkt(SITES[si]!.lat, SITES[si]!.lng), isOfflineSynced: d % 3 === 0,
+      });
+      const cps = allCps.filter((c) => c.siteId === site.id);
+      await tx.insert(s.patrolLogs).values(Array.from({ length: 8 }, (_, k) => ({
+        shiftId: sh!.id, checkpointId: cps[k % cps.length]!.id, scannedTagUid: cps[k % cps.length]!.externalTagUid,
+        scannedUtc: new Date(start.getTime() + (k + 1) * 85 * 60_000), gpsPoint: pointWkt(SITES[si]!.lat, SITES[si]!.lng), syncUuid: uuidv7(),
+      })));
+      await tx.insert(s.welfareChecks).values(Array.from({ length: 6 }, (_, k) => ({
+        shiftId: sh!.id, syncUuid: uuidv7(), dueUtc: new Date(start.getTime() + (k + 1) * 2 * 3_600_000),
+        confirmedUtc: new Date(start.getTime() + (k + 1) * 2 * 3_600_000 + 60_000), status: "OK" as const,
+      })));
+      if ((d + si) % 4 === 0) await tx.insert(s.incidentReports).values({
+        siteId: site.id, guardId: guard.id, syncUuid: uuidv7(), severity: "LOW", category: "Trespass",
+        transcriptText: "Synthetic incident: unauthorised person asked to leave the loading bay.", clientVisible: true, reportedUtc: new Date(start.getTime() + 5 * 3_600_000),
+      });
+    }
+  }
+
+  await writeAudit(tx, { actorId: compliance!.id, action: "SEED", entityType: "organisation", entityId: co!.id, newValues: { guards: guards.length, sites: sites.length, dataOrigin: "SYNTHETIC" } });
 });
 
 console.log("seeded: 1 company, 25 guards (2 expired SIA), 5 sites, 1 mobile patrol route");

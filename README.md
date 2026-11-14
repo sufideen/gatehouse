@@ -29,5 +29,13 @@ Create the test DB first: `createdb gatehouse_test`. Migrations are idempotent a
 - Mobile queue adds a `REJECTED` sync status so server refusals (e.g. outside geofence) are kept, not dropped.
 - `drizzle-kit generate` quotes the custom PostGIS types; strip the quotes (`"geography(Point, 4326)"` -> `geography(Point, 4326)`) in new migrations.
 
+## Pilot & GDPR
+- Default data is **synthetic** (`users.data_origin = SYNTHETIC`, reserved email domains, Ofcom drama-range phone numbers). A test fails if seed/fixtures contain anything real-looking.
+- Real people are `PILOT_CONSENTED`: a `consents` row (scopes `IDENTITY` / `CONTACT` / `SIA_DETAILS`, policy version) is required, only consented fields are stored, and `retention_expires_at` is set to **30 days** after consent.
+- The importer refuses non-reserved emails in synthetic mode, and refuses pilot mode unless `ALLOW_PILOT_DATA=true` (set it only on the dedicated pilot database, region `eu-west-2`).
+- `/privacy/*` endpoints: record/withdraw consent, subject export, erasure. `pnpm --filter @gatehouse/api retention` (run daily via cron) anonymises expired pilot users and prints S3 keys to delete.
+- Anonymisation keeps the `users` row and the append-only logs (IDs only, no personal data) so audit integrity holds. BS 7858 vetting files, home addresses and emergency contacts are out of scope for the pilot.
+- You still need a privacy notice, a pilot agreement with the employer (you as processor) and a DPIA.
+
 ## Not built yet
 Auth (API currently reads `x-actor-id`), XLSX import, import upload UI, drag-and-drop roster, live data wiring in web, audit-log read endpoint, S3 presign endpoint, silent SOS SMS (uses the device SMS composer), custom-role UI.

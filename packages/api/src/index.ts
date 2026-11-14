@@ -4,3 +4,4 @@ export * from "./ratecard";
 export * from "./sync";
 export * from "./import/guardhouse";
 export { buildServer } from "./server";
+export * from "./privacy";

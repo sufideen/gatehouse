@@ -13,6 +13,7 @@ export const employmentType = pgEnum("employment_type", ["FULL_TIME", "RELIEF_BA
 export const shiftType = pgEnum("shift_type", ["STATIC", "MOBILE_PATROL"]);
 export const shiftStatus = pgEnum("shift_status", ["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 export const welfareStatus = pgEnum("welfare_status", ["PENDING", "OK", "OVERDUE", "SOS_TRIGGERED"]);
+export const dataOrigin = pgEnum("data_origin", ["SYNTHETIC", "PILOT_CONSENTED"]);
 export const incidentSeverity = pgEnum("incident_severity", ["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 
 const id = () => uuid("id").primaryKey().default(sql`gen_random_uuid()`);
@@ -44,11 +45,27 @@ export const users = pgTable("users", {
   emergencyContactPhone: text("emergency_contact_phone"),
   /** Client viewers are scoped to a client organisation's sites. */
   clientOrganisationId: uuid("client_organisation_id").references(() => organisations.id),
+  /** SYNTHETIC = mock data. PILOT_CONSENTED = real person who opted in (GDPR). */
+  dataOrigin: dataOrigin("data_origin").notNull().default("SYNTHETIC"),
+  /** Pilot data is auto-anonymised after this instant (30 days from consent). */
+  retentionExpiresAt: ts("retention_expires_at"),
+  anonymisedAt: ts("anonymised_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [
   unique("users_org_email_uq").on(t.organisationId, t.email),
   index("users_org_role_idx").on(t.organisationId, t.role),
 ]);
+
+export const consents = pgTable("consents", {
+  id: id(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  /** IDENTITY (name+work email), CONTACT (mobile), SIA_DETAILS (badge no. + expiry). */
+  scopes: jsonb("scopes").$type<string[]>().notNull(),
+  policyVersion: text("policy_version").notNull(),
+  grantedAt: ts("granted_at").notNull().defaultNow(),
+  withdrawnAt: ts("withdrawn_at"),
+  recordedBy: uuid("recorded_by"),
+}, (t) => [index("consents_user_idx").on(t.userId)]);
 
 export const sites = pgTable("sites", {
   id: id(),
