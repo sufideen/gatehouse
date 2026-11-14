@@ -4,22 +4,24 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { ActionForm, btnCls, inputCls } from "@/components/action-form";
 import { guardAction } from "@/app/actions";
 import { db } from "@/lib/db";
+import { GUARDS, requireRole } from "@/lib/auth";
 import { fmt, name } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function GuardSim({ searchParams }: { searchParams: Promise<{ shift?: string }> }) {
+  const me = await requireRole(GUARDS);
   const { shift: pick } = await searchParams;
   const mine = await db.select({ s: shifts, site: sites, g: users }).from(shifts).innerJoin(sites, eq(sites.id, shifts.siteId)).innerJoin(users, eq(users.id, shifts.guardId))
-    .where(inArray(shifts.status, ["ASSIGNED", "IN_PROGRESS"])).orderBy(asc(shifts.startUtc));
-  if (!mine.length) return <Card><CardTitle>Guard simulator</CardTitle><p className="text-sm">No assigned shifts yet. Go to <a className="underline" href="/roster">Roster</a> and assign a compliant (green) guard first.</p></Card>;
+    .where(and(eq(shifts.guardId, me.id), inArray(shifts.status, ["ASSIGNED", "IN_PROGRESS"]))).orderBy(asc(shifts.startUtc));
+  if (!mine.length) return <Card><CardTitle>Guard simulator</CardTitle><p className="text-sm">No shifts assigned to you yet. Ask a controller to assign one (signed in as admin, use Roster).</p></Card>;
   const cur = mine.find((m) => m.s.id === pick) ?? mine[0]!;
   const cps = await db.select().from(checkpoints).where(eq(checkpoints.siteId, cur.site.id));
   const [att] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.shiftId, cur.s.id));
   const scans = await db.select().from(patrolLogs).where(eq(patrolLogs.shiftId, cur.s.id)).orderBy(sql`${patrolLogs.scannedUtc} desc`).limit(5);
   const [c] = (await db.execute<{ lat: number; lng: number }>(sql`select ST_Y(centre::geometry) lat, ST_X(centre::geometry) lng from sites where id = ${cur.site.id}`));
   const hidden = (<>
-    <input type="hidden" name="guardId" value={cur.g.id} /><input type="hidden" name="shiftId" value={cur.s.id} /><input type="hidden" name="siteId" value={cur.site.id} />
+    <input type="hidden" name="shiftId" value={cur.s.id} /><input type="hidden" name="siteId" value={cur.site.id} />
     <input type="hidden" name="siteLat" value={c!.lat} /><input type="hidden" name="siteLng" value={c!.lng} />
   </>);
 

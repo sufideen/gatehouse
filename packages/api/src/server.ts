@@ -8,7 +8,9 @@ import { applySyncBatch, syncBatch } from "./sync";
 
 export function buildServer(db = createDb().db) {
   const app = Fastify({ logger: false });
-  // TODO(auth): actor identity is taken from a header until real auth (sessions/JWT) lands.
+  // The standalone API has NO real auth: it trusts x-actor-id. Refuse to start unless that is explicitly accepted.
+  // The web app (apps/web) does not use this server; it has real login and role checks.
+  if (process.env.ALLOW_INSECURE_DEV_AUTH !== "true") throw new Error("packages/api server has no auth; set ALLOW_INSECURE_DEV_AUTH=true for local dev only");
   const actor = (h: Record<string, unknown>) => z.string().uuid().parse(h["x-actor-id"]);
 
   app.setErrorHandler((err: unknown, _req, reply) => {

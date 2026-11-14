@@ -78,6 +78,7 @@ export async function anonymiseUser(db: Db, o: { userId: string; actorId: string
     await tx.update(users).set({
       firstName: "Anonymised", lastName: "User", email: `anon-${o.userId}@anonymised.invalid`, mobile: null,
       siaBadgeNumber: null, siaLicenceExpiry: null, siaSector: null, emergencyContactName: null, emergencyContactPhone: null,
+      passwordHash: null, // account can no longer log in
       anonymisedAt: new Date(),
     }).where(eq(users.id, o.userId));
     await tx.update(consents).set({ withdrawnAt: new Date() }).where(and(eq(consents.userId, o.userId), isNull(consents.withdrawnAt)));
@@ -110,5 +111,6 @@ export async function exportSubjectData(db: Db, userId: string) {
     db.select().from(consents).where(eq(consents.userId, userId)),
     db.select().from(immutableAuditLogs).where(eq(immutableAuditLogs.actorId, userId)),
   ]);
-  return { exportedAt: new Date().toISOString(), user, consents: consentRows, shifts: myShifts, attendance: att, patrolScans: patrols, welfareChecks: welfare, incidents, auditEntriesByUser: audit };
+  const { passwordHash: _omit, ...safeUser } = user; // never export credentials
+  return { exportedAt: new Date().toISOString(), user: safeUser, consents: consentRows, shifts: myShifts, attendance: att, patrolScans: patrols, welfareChecks: welfare, incidents, auditEntriesByUser: audit };
 }

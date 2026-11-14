@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
+import { STAFF, requireRole } from "@/lib/auth";
 import { fmt, name } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 type Live = { shift_id: string; first_name: string | null; last_name: string | null; site: string; status: string; start_utc: Date; end_utc: Date; clock_in_utc: Date | null; dist: number | null; selfie: string | null; last_scan: Date | null; radius: number; next_welfare: Date | null };
 
 export default async function Dashboard() {
+  await requireRole(STAFF);
   const live = await db.execute<Live>(sql`
     SELECT s.id shift_id, u.first_name, u.last_name, si.name site, s.status, s.start_utc, s.end_utc, si.radius_meters radius,
            a.clock_in_utc, a.clock_in_selfie_s3_key selfie, round(ST_Distance(a.clock_in_gps, si.centre))::int dist,

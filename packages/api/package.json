@@ -32,6 +32,8 @@
     "./sync": "./src/sync.ts",
     "./privacy": "./src/privacy.ts",
     "./import": "./src/import/guardhouse.ts",
-    "./ratecard": "./src/ratecard.ts"
+    "./ratecard": "./src/ratecard.ts",
+    "./auth": "./src/auth.ts",
+    "./pilot": "./src/pilot.ts"
   }
 }

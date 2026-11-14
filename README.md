@@ -32,7 +32,21 @@ pnpm demo                     # http://localhost:3000
 pnpm demo:reset               # wipe and re-seed (local DB only)
 ```
 Try: **Roster** (assign an expired-SIA guard as Admin, then as Compliance Admin with a reason) -> **Guard simulator** (clock in away from site, then on site; scan a legacy tag; SOS) -> **Dashboard**, **Audit trail**, **Client portal** (view as each client).
-There is no login yet (PoC); do not expose it beyond localhost.
+Sign in at `/login`. Synthetic demo accounts (password `demo-password-1`, dev only): `admin@`, `compliance@`, `controlroom@thamesshield.example`, `fatima.khan@thamesshield.example` (guard), `client1@demo.example` (client viewer).
+
+### Roles
+| Role | Access |
+|---|---|
+| ADMIN | dashboard, roster (assign), audit trail, import, pilot invites |
+| COMPLIANCE_ADMIN | as ADMIN, and the only role that can override a compliance block (written reason required) |
+| CONTROL_ROOM | dashboard and roster, read-only |
+| STATIC_GUARD / PATROL_DRIVER | own shift screen and "My data" only |
+| CLIENT_VIEWER | client portal, locked to their own client's sites |
+
+Auth: scrypt password hashes, HMAC-signed httpOnly cookie (8h), user re-loaded from the DB on every request, 5 login attempts / 15 min, logins audited by user id. Every server action re-checks the role and takes the actor from the session. Set `AUTH_SECRET` (32+ chars) in production; the app refuses to run without it.
+
+### Pilot onboarding (real people, with consent)
+Run with `ALLOW_PILOT_DATA=true pnpm demo` only on the dedicated pilot deployment. An admin creates a one-time invite link (no personal data stored); the guard opens it, reads the notice, ticks what to share, sets their own password. Their data self-deletes after 30 days; "My data" lets them withdraw, download or delete everything.
 
 ## Decisions worth knowing
 - **Override role**: `COMPLIANCE_ADMIN` only (CLAUDE.md), not plain `ADMIN` as the phase prompt said.
@@ -50,4 +64,4 @@ There is no login yet (PoC); do not expose it beyond localhost.
 - You still need a privacy notice, a pilot agreement with the employer (you as processor) and a DPIA.
 
 ## Not built yet
-Auth (API currently reads `x-actor-id`), XLSX import, import upload UI, drag-and-drop roster, live data wiring in web, audit-log read endpoint, S3 presign endpoint, silent SOS SMS (uses the device SMS composer), custom-role UI.
+Auth on the standalone Fastify API (it refuses to start without `ALLOW_INSECURE_DEV_AUTH=true`; the web app does not use it), password reset / MFA, XLSX import, import upload UI, drag-and-drop roster, live data wiring in web, audit-log read endpoint, S3 presign endpoint, silent SOS SMS (uses the device SMS composer), custom-role UI.

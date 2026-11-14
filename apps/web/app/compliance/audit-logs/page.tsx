@@ -2,11 +2,13 @@ import { desc, eq } from "drizzle-orm";
 import { immutableAuditLogs } from "@gatehouse/db";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
+import { ADMINS, requireRole } from "@/lib/auth";
 import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AuditLogs({ searchParams }: { searchParams: Promise<{ action?: string }> }) {
+  await requireRole(ADMINS);
   const { action } = await searchParams;
   const all = await db.select().from(immutableAuditLogs).orderBy(desc(immutableAuditLogs.utcTimestamp)).limit(500);
   const actions = [...new Set(all.map((a) => a.action))].sort();

@@ -5,3 +5,5 @@ export * from "./sync";
 export * from "./import/guardhouse";
 export { buildServer } from "./server";
 export * from "./privacy";
+export * from "./auth";
+export * from "./pilot";

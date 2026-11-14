@@ -4,13 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { fmt } from "@/lib/format";
+import { requireRole, STAFF } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientPortal({ searchParams }: { searchParams: Promise<{ client?: string }> }) {
-  const { client } = await searchParams;
+  const me = await requireRole([...STAFF, "CLIENT_VIEWER"]);
+  const isViewer = me.role === "CLIENT_VIEWER";
+  // A client viewer is locked to their own organisation: the ?client= parameter is ignored for them.
+  const client = isViewer ? (me.clientOrganisationId ?? "none") : (await searchParams).client;
   const clientIds = (await db.selectDistinct({ id: sites.clientId }).from(sites)).map((c) => c.id).filter((x): x is string => !!x);
-  const clients = await db.select().from(organisations).where(inArray(organisations.id, clientIds));
+  const clients = await db.select().from(organisations).where(inArray(organisations.id, isViewer ? clientIds.filter((c) => c === me.clientOrganisationId) : clientIds));
   const current = clients.find((c) => c.id === client) ?? clients[0];
   if (!current) return <p>No clients.</p>;
   // Strict scoping: everything below is filtered by the selected client's sites only.
@@ -24,10 +28,10 @@ export default async function ClientPortal({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 text-xs">
+      {!isViewer && <div className="flex flex-wrap gap-2 text-xs">
         <span className="text-slate-400">View as client:</span>
         {clients.map((c) => <a key={c.id} href={`?client=${c.id}`} className={`rounded px-2 py-1 ${c.id === current.id ? "bg-sky-600" : "bg-slate-800"}`}>{c.name}</a>)}
-      </div>
+      </div>}
       <Card>
         <CardTitle>{current.name}: site coverage</CardTitle>
         {mySites.map((s) => {

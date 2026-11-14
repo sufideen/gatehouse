@@ -2,6 +2,7 @@ import { uuidv7 } from "uuidv7";
 import { createDb } from "./client";
 import { circlePolygonWkt, pointWkt } from "./geo";
 import { writeAudit } from "./audit";
+import { hashPassword } from "./password";
 import * as s from "./schema";
 
 const { db, sql } = createDb();
@@ -18,6 +19,8 @@ const SITES = [
 ];
 
 const day = 86_400_000;
+// Demo-only password for SYNTHETIC accounts. Real/pilot people set their own when they join.
+const demoHash = await hashPassword("demo-password-1");
 const dateOffset = (days: number) => new Date(Date.now() + days * day);
 
 await db.transaction(async (tx) => {
@@ -28,9 +31,9 @@ await db.transaction(async (tx) => {
     SITES.map((x) => ({ name: `${x.name.split(" ")[0]} Estates Ltd` })),
   ).returning();
 
-  await tx.insert(s.users).values({ organisationId: co!.id, role: "ADMIN", firstName: "Ada", lastName: "Control", email: "admin@thamesshield.example" });
-  const [compliance] = await tx.insert(s.users).values({ organisationId: co!.id, role: "COMPLIANCE_ADMIN", firstName: "Colin", lastName: "Compliance", email: "compliance@thamesshield.example" }).returning();
-  await tx.insert(s.users).values({ organisationId: co!.id, role: "CONTROL_ROOM", firstName: "Rosa", lastName: "Operator", email: "controlroom@thamesshield.example" });
+  await tx.insert(s.users).values({ organisationId: co!.id, role: "ADMIN", firstName: "Ada", lastName: "Control", email: "admin@thamesshield.example", passwordHash: demoHash });
+  const [compliance] = await tx.insert(s.users).values({ organisationId: co!.id, role: "COMPLIANCE_ADMIN", firstName: "Colin", lastName: "Compliance", email: "compliance@thamesshield.example", passwordHash: demoHash }).returning();
+  await tx.insert(s.users).values({ organisationId: co!.id, role: "CONTROL_ROOM", firstName: "Rosa", lastName: "Operator", email: "controlroom@thamesshield.example", passwordHash: demoHash });
 
   const guards = await tx.insert(s.users).values(FIRST.map((f, i) => {
     const expired = i === 0 || i === 1;      // 2 expired SIA licences for tests
@@ -40,6 +43,7 @@ await db.transaction(async (tx) => {
       role: (i >= 20 ? "PATROL_DRIVER" : "STATIC_GUARD") as "PATROL_DRIVER" | "STATIC_GUARD",
       firstName: f, lastName: LAST[i]!,
       email: `${f}.${LAST[i]!}`.toLowerCase().replace(/[^a-z.]/g, "") + "@thamesshield.example",
+      passwordHash: demoHash,
       mobile: `07700 900${String(100 + i)}`,
       employmentType: (i % 5 === 4 ? "RELIEF_BANK" : "FULL_TIME") as "RELIEF_BANK" | "FULL_TIME",
       siaBadgeNumber: `1234 5678 ${String(1000 + i)}`,
@@ -50,6 +54,12 @@ await db.transaction(async (tx) => {
       emergencyContactPhone: `07700 900${String(500 + i)}`,
     };
   })).returning();
+
+  // One client-portal viewer per client organisation, scoped to that client's sites.
+  await tx.insert(s.users).values(clients.map((c, i) => ({
+    organisationId: co!.id, role: "CLIENT_VIEWER" as const, clientOrganisationId: c.id, firstName: "Client", lastName: `Viewer ${i + 1}`,
+    email: `client${i + 1}@demo.example`, passwordHash: demoHash,
+  })));
 
   const sites = await tx.insert(s.sites).values(SITES.map((x, i) => ({
     organisationId: co!.id, clientId: clients[i]!.id, name: x.name, address: x.address, postcode: x.postcode,

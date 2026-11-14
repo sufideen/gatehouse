@@ -45,6 +45,7 @@ export const users = pgTable("users", {
   emergencyContactPhone: text("emergency_contact_phone"),
   /** Client viewers are scoped to a client organisation's sites. */
   clientOrganisationId: uuid("client_organisation_id").references(() => organisations.id),
+  passwordHash: text("password_hash"),
   /** SYNTHETIC = mock data. PILOT_CONSENTED = real person who opted in (GDPR). */
   dataOrigin: dataOrigin("data_origin").notNull().default("SYNTHETIC"),
   /** Pilot data is auto-anonymised after this instant (30 days from consent). */
@@ -66,6 +67,19 @@ export const consents = pgTable("consents", {
   withdrawnAt: ts("withdrawn_at"),
   recordedBy: uuid("recorded_by"),
 }, (t) => [index("consents_user_idx").on(t.userId)]);
+
+/** Pilot onboarding invite. Holds NO personal data: the invitee supplies their own details and consent when joining. */
+export const invites = pgTable("invites", {
+  id: id(),
+  organisationId: uuid("organisation_id").notNull().references(() => organisations.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  role: userRole("role").notNull(),
+  label: text("label").notNull(),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  userId: uuid("user_id").references(() => users.id),
+});
 
 export const sites = pgTable("sites", {
   id: id(),
