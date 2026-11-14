@@ -8,3 +8,4 @@ export * from "./privacy";
 export * from "./auth";
 export * from "./pilot";
 export * from "./account";
+export * from "./mail";

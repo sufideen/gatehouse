@@ -1,9 +1,8 @@
 import { findOpenInvite } from "@gatehouse/api/pilot";
-import { PILOT_RETENTION_DAYS } from "@gatehouse/api/privacy";
 import { ActionForm, btnCls, inputCls } from "@/components/action-form";
 import { Card, CardTitle } from "@/components/ui/card";
 import { joinAction } from "@/app/pilot-actions";
-import { POLICY_VERSION } from "@/lib/policy";
+import { NOTICE } from "@/lib/policy";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +18,7 @@ export default async function Join({ params }: { params: Promise<{ token: string
       <Card>
         <CardTitle>Join the Gatehouse pilot</CardTitle>
         <div className="space-y-2 text-sm text-slate-300">
-          <p><b>What this is:</b> a test of a scheduling and lone-worker app. Taking part is voluntary and does not affect your job.</p>
-          <p><b>What we collect:</b> only what you tick below, plus your work activity during the test (clock-ins with GPS and a selfie, checkpoint scans, welfare checks, incident reports).</p>
-          <p><b>How long:</b> everything personal is automatically deleted or anonymised {PILOT_RETENTION_DAYS} days after you join. You can withdraw or delete everything yourself at any time from &quot;My data&quot;.</p>
-          <p><b>Your rights:</b> access, correction, erasure and objection under UK GDPR. Notice version {POLICY_VERSION}. (Replace this text with your reviewed privacy notice and controller contact before real use.)</p>
+          {NOTICE.map((n) => <p key={n.title}><b>{n.title}:</b> {n.body}</p>)}
         </div>
       </Card>
       <Card>

@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system";
 import NetInfo from "@react-native-community/netinfo";
 import { uuidv7 } from "uuidv7";
 import { backoffDelayMs } from "./backoff";
+import { getToken } from "../session";
 
 /**
  * Offline-first queue (CLAUDE.md rule 3): every action is persisted locally with a client-generated
@@ -17,7 +18,7 @@ const TABLES: Record<RecordType, string> = {
 };
 const TABLE_NAMES = [...new Set(Object.values(TABLES))];
 
-export type EngineConfig = { apiUrl: string; guardId: string; deviceId: string; authToken?: string };
+export type EngineConfig = { apiUrl: string; deviceId: string; /** Called when the server says the token is no longer valid (password reset, erased account). */ onAuthLost?: () => void };
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 export const getDb = () => (dbPromise ??= SQLite.openDatabaseAsync("gatehouse.db"));
@@ -83,14 +84,21 @@ export async function flushOnce(cfg: EngineConfig): Promise<{ sent: number; fail
   for (const r of rows) await mark(r, "sync_status='SYNCING'", []);
 
   try {
-    const res = await fetch(`${cfg.apiUrl}/sync/batch`, {
+    const token = await getToken();
+    if (!token) throw new Error("not signed in");
+    const res = await fetch(`${cfg.apiUrl}/api/mobile/sync`, {
       method: "POST",
-      headers: { "content-type": "application/json", ...(cfg.authToken ? { authorization: `Bearer ${cfg.authToken}` } : {}) },
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        deviceId: cfg.deviceId, guardId: cfg.guardId,
+        deviceId: cfg.deviceId, // the server takes the guard identity from the token, not from the body
         records: rows.map((r) => ({ ...JSON.parse(r.payload_json), type: r.record_type, syncUuid: r.idempotency_key, deviceUtc: r.device_utc })),
       }),
     });
+    if (res.status === 401) { // keep the records; just stop until the guard signs in again
+      for (const r of rows) await mark(r, "sync_status='PENDING'", []);
+      cfg.onAuthLost?.();
+      return { sent: 0, failed: true };
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { results } = (await res.json()) as { results: { syncUuid: string; status: "APPLIED" | "DUPLICATE" | "REJECTED"; reason?: string }[] };
     for (const out of results) {
@@ -152,4 +160,13 @@ export async function pendingCount(): Promise<number> {
   let n = 0;
   for (const t of TABLE_NAMES) n += (await db.getFirstAsync<{ c: number }>(`SELECT COUNT(*) c FROM ${t} WHERE sync_status!='SYNCED'`))?.c ?? 0;
   return n;
+}
+
+/** Erasure / sign-out-and-forget: removes every locally stored record and queued file so nothing personal stays on the device. */
+export async function wipeLocalData() {
+  const db = await getDb();
+  const files = await db.getAllAsync<{ local_uri: string }>(`SELECT local_uri FROM media_queue`).catch(() => []);
+  for (const f of files) await FileSystem.deleteAsync(f.local_uri, { idempotent: true }).catch(() => {});
+  for (const t of TABLE_NAMES) await db.runAsync(`DELETE FROM ${t}`);
+  await db.runAsync(`DELETE FROM media_queue`);
 }

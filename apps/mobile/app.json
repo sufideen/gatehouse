@@ -4,8 +4,37 @@
     "slug": "gatehouse-guard",
     "version": "0.1.0",
     "orientation": "portrait",
-    "ios": { "bundleIdentifier": "uk.gatehouse.guard", "infoPlist": { "NFCReaderUsageDescription": "Scan patrol checkpoint tags", "NSLocationWhenInUseUsageDescription": "Verify you are on site", "NSCameraUsageDescription": "Selfie verification and checkpoint scanning", "NSMicrophoneUsageDescription": "SOS audio recording" } },
-    "android": { "package": "uk.gatehouse.guard", "permissions": ["ACCESS_FINE_LOCATION", "CAMERA", "NFC", "RECORD_AUDIO", "VIBRATE"] },
-    "plugins": ["expo-sqlite", ["expo-camera", { "cameraPermission": "Selfie verification and checkpoint scanning" }], "expo-location", "react-native-nfc-manager"]
+    "ios": {
+      "bundleIdentifier": "uk.gatehouse.guard",
+      "infoPlist": {
+        "NFCReaderUsageDescription": "Scan patrol checkpoint tags",
+        "NSLocationWhenInUseUsageDescription": "Verify you are on site",
+        "NSCameraUsageDescription": "Selfie verification and checkpoint scanning",
+        "NSMicrophoneUsageDescription": "SOS audio recording"
+      }
+    },
+    "android": {
+      "package": "uk.gatehouse.guard",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "NFC",
+        "RECORD_AUDIO",
+        "VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Selfie verification and checkpoint scanning"
+        }
+      ],
+      "expo-location",
+      "react-native-nfc-manager",
+      "expo-secure-store"
+    ],
+    "scheme": "gatehouse"
   }
 }

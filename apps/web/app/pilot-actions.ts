@@ -18,7 +18,7 @@ export async function createInviteAction(_: ActionState, f: FormData): Promise<A
     const { token } = await createInvite(db, { organisationId: me.organisationId, role, label: String(f.get("label") || "Pilot guard"), createdBy: me.id });
     revalidatePath("/admin/invites");
     // The raw token is shown exactly once; only its hash is stored.
-    return { ok: true, message: "Invite created. Copy this one-time link now (valid 7 days):", lines: [`/join/${token}`] };
+    return { ok: true, message: "Invite created. Copy this one-time link now (valid 7 days):", lines: [`/join/${token}`, `gatehouse://join/${token}  (opens the mobile app)`] };
   } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Error" }; }
 }
 

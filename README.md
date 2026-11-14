@@ -51,10 +51,15 @@ Auth: scrypt password hashes, HMAC-signed httpOnly cookie (8h), user re-loaded f
 - **Forgot password:** emails a one-hour single-use link (same reply whether or not the account exists, rate limited). Only the token hash is stored. Resetting the password does **not** bypass MFA.
 - **Admin recovery** (`/admin/users`): issue a one-time reset link for someone without email access, or reset a locked-out person's MFA. Admins cannot reset their own. All audited by user id.
 - **Session revocation:** password reset/change and MFA reset bump a per-user session epoch, signing out every other device immediately.
-- **Mail:** there is no SMTP yet. `createDevMailer` logs messages and shows them at `/dev/outbox` (dev only). Implement the `Mailer` interface (SES/SMTP) before real use, and set `APP_BASE_URL` (reset links are never built from the Host header).
+- **Mail:** set `SMTP_URL` + `MAIL_FROM` (any SMTP provider; AWS SES SMTP in `eu-west-2` works) and `APP_BASE_URL`. Without them, dev uses an in-memory inbox at `/dev/outbox`; **production refuses to start sending without SMTP**. Message bodies are never logged by the SMTP mailer, and a send failure never changes the on-screen reply. Reset links are never built from the Host header. You must verify the sending domain with your provider and add SPF/DKIM/DMARC.
 
 ### Pilot onboarding (real people, with consent)
 Run with `ALLOW_PILOT_DATA=true pnpm demo` only on the dedicated pilot deployment. An admin creates a one-time invite link (no personal data stored); the guard opens it, reads the notice, ticks what to share, sets their own password. Their data self-deletes after 30 days; "My data" lets them withdraw, download or delete everything.
+
+## Mobile app: sign-in, pilot join and "My data"
+The Expo app now has real accounts (`apps/mobile`): **Login** (with MFA code if enabled), **Join the pilot** (invite code or `gatehouse://join/<token>` deep link, privacy notice, per-scope consent switches), and **My data** (withdraw consent, export a copy, delete account and data, sign out). Token is kept in the OS keychain (`expo-secure-store`); erasure also wipes the local SQLite queue and queued photos.
+It talks to a bearer-token API in the web app (`/api/mobile/*`: `login`, `join`, `notice`, `invite/:token`, `me`, `consent/withdraw`, `export`, `erase`, `sync`). Offline sync now goes through the authenticated `/api/mobile/sync`; the guard identity comes from the token, never the request body. Mobile tokens last 14 days and are revoked by password/MFA resets or erasure. Only guard roles can sign in on mobile. Set `EXPO_PUBLIC_API_URL`.
+The shift screen still uses a demo shift (assignment fetching is not built), so its sync will be rejected until real shift data is wired in.
 
 ## Decisions worth knowing
 - **Override role**: `COMPLIANCE_ADMIN` only (CLAUDE.md), not plain `ADMIN` as the phase prompt said.

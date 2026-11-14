@@ -3,7 +3,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { users } from "@gatehouse/db";
-import { createDevMailer } from "@gatehouse/api/account";
+import { mailerFromEnv, type MailerChoice } from "@gatehouse/api/mail";
 import { createRateLimiter, signSession, verifySession } from "@gatehouse/api/auth";
 import { db } from "./db";
 
@@ -26,13 +26,13 @@ export function secret(): string {
 
 const g = globalThis as unknown as {
   __loginLimiter?: ReturnType<typeof createRateLimiter>; __mfaLimiter?: ReturnType<typeof createRateLimiter>;
-  __resetLimiter?: ReturnType<typeof createRateLimiter>; __mail?: ReturnType<typeof createDevMailer>;
+  __resetLimiter?: ReturnType<typeof createRateLimiter>; __mail?: MailerChoice;
 };
 export const loginLimiter = (g.__loginLimiter ??= createRateLimiter(5, 15 * 60_000));
 export const mfaLimiter = (g.__mfaLimiter ??= createRateLimiter(5, 15 * 60_000));
 export const resetLimiter = (g.__resetLimiter ??= createRateLimiter(5, 15 * 60_000));
-/** Dev mailer only: swap for an SMTP/SES implementation of `Mailer` before real use. */
-export const dev = (g.__mail ??= createDevMailer());
+/** SMTP when SMTP_URL + MAIL_FROM are set; dev mailer (outbox page) otherwise; throws in production without SMTP. Lazy on purpose. */
+export const getMailer = (): MailerChoice => (g.__mail ??= mailerFromEnv());
 
 /** Reset links must never be built from the request Host header (link poisoning), so the base URL is configuration. */
 export function baseUrl(): string {

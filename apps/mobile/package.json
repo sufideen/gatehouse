@@ -21,7 +21,8 @@
     "react-native": "0.76.3",
     "react-native-get-random-values": "~1.11.0",
     "react-native-nfc-manager": "^3.16.1",
-    "uuidv7": "^1.0.2"
+    "uuidv7": "^1.0.2",
+    "expo-secure-store": "~14.0.0"
   },
   "devDependencies": {
     "@types/react": "~18.3.12",
