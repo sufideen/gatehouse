@@ -169,4 +169,5 @@ export async function wipeLocalData() {
   for (const f of files) await FileSystem.deleteAsync(f.local_uri, { idempotent: true }).catch(() => {});
   for (const t of TABLE_NAMES) await db.runAsync(`DELETE FROM ${t}`);
   await db.runAsync(`DELETE FROM media_queue`);
+  await db.execAsync(`DROP TABLE IF EXISTS cached_shifts`); // site/shift details are also personal-adjacent work data
 }

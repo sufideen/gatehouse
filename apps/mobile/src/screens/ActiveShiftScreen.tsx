@@ -13,6 +13,8 @@ export type ShiftContext = {
   /** Cached offline: external_tag_uid -> checkpoint name (arbitrary legacy Guardhouse strings supported). */
   checkpoints: Record<string, string>;
   welfareIntervalMin: number; controlRoomMobile: string; apiUrl: string;
+  /** An already-open clock-in for this shift (resume after app restart). */
+  clockIn?: { syncUuid: string } | null;
 };
 
 const WELFARE_WARN_MS = 5 * 60_000;
@@ -20,8 +22,8 @@ const CATEGORIES = ["Trespass", "Theft", "Damage", "Aggression", "Fire/Alarm", "
 
 export default function ActiveShiftScreen({ ctx }: { ctx: ShiftContext }) {
   const [camPerm, requestCam] = useCameraPermissions();
-  const [clockedIn, setClockedIn] = useState(false);
-  const clockInKey = useRef<string | null>(null);
+  const [clockedIn, setClockedIn] = useState(!!ctx.clockIn);
+  const clockInKey = useRef<string | null>(ctx.clockIn?.syncUuid ?? null);
   const [mode, setMode] = useState<"home" | "selfie" | "scan" | "incident">("home");
   const [msg, setMsg] = useState("");
   const camRef = useRef<CameraView>(null);
@@ -78,7 +80,7 @@ export default function ActiveShiftScreen({ ctx }: { ctx: ShiftContext }) {
     }).catch(() => undefined);
     const audioKey = rec ? `sos/${Date.now()}` : undefined;
     await enqueue("WELFARE_CHECK", { shiftId: ctx.shiftId, dueUtc: new Date(dueAt).toISOString(), status: "SOS_TRIGGERED", audioKey, gps, reason });
-    if (await SMS.isAvailableAsync()) SMS.sendSMSAsync([ctx.controlRoomMobile], `SOS ${reason} at ${ctx.siteName}${gps ? ` https://maps.google.com/?q=${gps.lat},${gps.lng}` : ""}`).catch(() => {});
+    if (ctx.controlRoomMobile && (await SMS.isAvailableAsync())) SMS.sendSMSAsync([ctx.controlRoomMobile], `SOS ${reason} at ${ctx.siteName}${gps ? ` https://maps.google.com/?q=${gps.lat},${gps.lng}` : ""}`).catch(() => {});
     if (rec) setTimeout(async () => { await rec.stopAndUnloadAsync().catch(() => {}); const uri = rec.getURI(); if (uri) await enqueueMedia(uri, "audio/mp4", "sos"); }, 60_000);
     setMsg("SOS sent to control room");
   }, [ctx, dueAt]);
