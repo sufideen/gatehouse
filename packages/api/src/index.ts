@@ -7,3 +7,4 @@ export { buildServer } from "./server";
 export * from "./privacy";
 export * from "./auth";
 export * from "./pilot";
+export * from "./account";

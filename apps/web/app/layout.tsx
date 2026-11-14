@@ -12,10 +12,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nav: [string, string][] = [];
   if (me) {
     if (STAFF.includes(me.role)) nav.push(["/dashboard", "Dashboard"], ["/roster", "Roster"]);
-    if (ADMINS.includes(me.role)) nav.push(["/compliance/audit-logs", "Audit trail"], ["/import/guardhouse", "Guardhouse import"], ["/admin/invites", "Pilot invites"]);
+    if (ADMINS.includes(me.role)) nav.push(["/compliance/audit-logs", "Audit trail"], ["/import/guardhouse", "Guardhouse import"], ["/admin/invites", "Pilot invites"], ["/admin/users", "Account recovery"]);
     if (STAFF.includes(me.role) || me.role === "CLIENT_VIEWER") nav.push(["/client-portal", "Client portal"]);
     if (GUARDS.includes(me.role)) nav.push(["/guard", "My shift"], ["/privacy", "My data"]);
   }
+  if (me) nav.push(["/security", "Security"]);
   return (
     <html lang="en-GB" className="dark">
       <body>

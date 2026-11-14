@@ -45,6 +45,14 @@ Sign in at `/login`. Synthetic demo accounts (password `demo-password-1`, dev on
 
 Auth: scrypt password hashes, HMAC-signed httpOnly cookie (8h), user re-loaded from the DB on every request, 5 login attempts / 15 min, logins audited by user id. Every server action re-checks the role and takes the actor from the session. Set `AUTH_SECRET` (32+ chars) in production; the app refuses to run without it.
 
+### Password reset and MFA
+- **Two-step verification (TOTP, RFC 6238):** works with any authenticator app. Mandatory for ADMIN, COMPLIANCE_ADMIN and CONTROL_ROOM (they are forced to `/security` until enrolled); optional for guards and client viewers. Secrets are AES-256-GCM encrypted at rest, codes cannot be replayed, and 10 one-time recovery codes are issued (stored hashed, shown once).
+- **Login with MFA:** the password step only yields a 5-minute "pending" cookie signed with a different key; it is never a session.
+- **Forgot password:** emails a one-hour single-use link (same reply whether or not the account exists, rate limited). Only the token hash is stored. Resetting the password does **not** bypass MFA.
+- **Admin recovery** (`/admin/users`): issue a one-time reset link for someone without email access, or reset a locked-out person's MFA. Admins cannot reset their own. All audited by user id.
+- **Session revocation:** password reset/change and MFA reset bump a per-user session epoch, signing out every other device immediately.
+- **Mail:** there is no SMTP yet. `createDevMailer` logs messages and shows them at `/dev/outbox` (dev only). Implement the `Mailer` interface (SES/SMTP) before real use, and set `APP_BASE_URL` (reset links are never built from the Host header).
+
 ### Pilot onboarding (real people, with consent)
 Run with `ALLOW_PILOT_DATA=true pnpm demo` only on the dedicated pilot deployment. An admin creates a one-time invite link (no personal data stored); the guard opens it, reads the notice, ticks what to share, sets their own password. Their data self-deletes after 30 days; "My data" lets them withdraw, download or delete everything.
 
@@ -64,4 +72,4 @@ Run with `ALLOW_PILOT_DATA=true pnpm demo` only on the dedicated pilot deploymen
 - You still need a privacy notice, a pilot agreement with the employer (you as processor) and a DPIA.
 
 ## Not built yet
-Auth on the standalone Fastify API (it refuses to start without `ALLOW_INSECURE_DEV_AUTH=true`; the web app does not use it), password reset / MFA, XLSX import, import upload UI, drag-and-drop roster, live data wiring in web, audit-log read endpoint, S3 presign endpoint, silent SOS SMS (uses the device SMS composer), custom-role UI.
+Auth on the standalone Fastify API (it refuses to start without `ALLOW_INSECURE_DEV_AUTH=true`; the web app does not use it), WebAuthn/passkeys, SMS/email codes, XLSX import, import upload UI, drag-and-drop roster, live data wiring in web, audit-log read endpoint, S3 presign endpoint, silent SOS SMS (uses the device SMS composer), custom-role UI.

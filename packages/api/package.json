@@ -34,6 +34,7 @@
     "./import": "./src/import/guardhouse.ts",
     "./ratecard": "./src/ratecard.ts",
     "./auth": "./src/auth.ts",
-    "./pilot": "./src/pilot.ts"
+    "./pilot": "./src/pilot.ts",
+    "./account": "./src/account.ts"
   }
 }

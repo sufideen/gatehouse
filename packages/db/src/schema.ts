@@ -46,6 +46,15 @@ export const users = pgTable("users", {
   /** Client viewers are scoped to a client organisation's sites. */
   clientOrganisationId: uuid("client_organisation_id").references(() => organisations.id),
   passwordHash: text("password_hash"),
+  /** Bumped on password reset/change and MFA reset: invalidates every existing session for this user. */
+  sessionEpoch: integer("session_epoch").notNull().default(0),
+  /** TOTP secret, AES-256-GCM encrypted. Pending until mfaEnabledAt is set. */
+  mfaSecretEnc: text("mfa_secret_enc"),
+  mfaEnabledAt: ts("mfa_enabled_at"),
+  /** Last accepted 30s TOTP step: a code can never be replayed. */
+  mfaLastStep: integer("mfa_last_step"),
+  /** sha256 of each unused one-time recovery code. */
+  mfaRecoveryHashes: jsonb("mfa_recovery_hashes").$type<string[]>().notNull().default([]),
   /** SYNTHETIC = mock data. PILOT_CONSENTED = real person who opted in (GDPR). */
   dataOrigin: dataOrigin("data_origin").notNull().default("SYNTHETIC"),
   /** Pilot data is auto-anonymised after this instant (30 days from consent). */
@@ -80,6 +89,16 @@ export const invites = pgTable("invites", {
   usedAt: ts("used_at"),
   userId: uuid("user_id").references(() => users.id),
 });
+
+export const passwordResets = pgTable("password_resets", {
+  id: id(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  /** Null for self-service requests; the admin's id for admin-issued links. */
+  createdBy: uuid("created_by"),
+}, (t) => [index("password_resets_user_idx").on(t.userId)]);
 
 export const sites = pgTable("sites", {
   id: id(),

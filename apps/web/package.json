@@ -18,7 +18,8 @@
     "tailwind-merge": "^2.5.5",
     "@gatehouse/db": "workspace:*",
     "drizzle-orm": "^0.36.4",
-    "uuidv7": "^1.0.2"
+    "uuidv7": "^1.0.2",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
@@ -27,6 +28,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "@types/qrcode": "^1.5.5"
   }
 }
