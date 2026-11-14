@@ -4,25 +4,30 @@
   "private": true,
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --dev-client",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "android": "expo run:android",
+    "prebuild": "expo prebuild --platform android --no-install"
   },
   "dependencies": {
+    "@babel/runtime": "^7.29.14",
     "@react-native-community/netinfo": "11.4.1",
     "expo": "~52.0.11",
     "expo-av": "~15.0.1",
+    "expo-build-properties": "~0.13.3",
     "expo-camera": "~16.0.8",
+    "expo-dev-client": "~5.0.20",
     "expo-file-system": "~18.0.4",
     "expo-location": "~18.0.2",
+    "expo-secure-store": "~14.0.0",
     "expo-sms": "~13.0.0",
     "expo-sqlite": "~15.0.3",
     "react": "18.3.1",
-    "react-native": "0.76.3",
+    "react-native": "0.76.9",
     "react-native-get-random-values": "~1.11.0",
     "react-native-nfc-manager": "^3.16.1",
-    "uuidv7": "^1.0.2",
-    "expo-secure-store": "~14.0.0"
+    "uuidv7": "^1.0.2"
   },
   "devDependencies": {
     "@types/react": "~18.3.12",
